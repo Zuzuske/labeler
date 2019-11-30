@@ -33,7 +33,8 @@ mouse_y = 0
 point_1 = (-1, -1)
 point_2 = (-1, -1)
 
-mode = "drag"
+drawing_mode = "drag"
+edit_mode = False
 
 """
     0,0 ------> x (width)
@@ -428,7 +429,6 @@ def edit_bbox(obj_to_edit, action):
                 yolo_line = yolo_format(
                     class_index, (xmin, ymin), (xmax, ymax), width, height
                 )
-                # TODO: height and width ought to be stored
 
                 with open(ann_path, "w") as new_file:
                     for line in lines:
@@ -530,7 +530,7 @@ def mouse_listener(event, x, y, flags, param):
                     # first click (start drawing a bounding box or delete an item)
                     point_1 = (x, y)
             else:
-                if mode == "click":
+                if drawing_mode == "click":
                     # minimal size for bounding box to avoid errors
                     threshold = 5
                     if (
@@ -544,12 +544,19 @@ def mouse_listener(event, x, y, flags, param):
         if dragBBox.anchor_being_dragged is not None:
             dragBBox.handler_left_mouse_up(x, y)
         else:
-            if mode == "drag":
+            if drawing_mode == "drag":
                 threshold = 5
                 if abs(x - point_1[0]) > threshold or abs(y - point_1[1]) > threshold:
                     # second click
                     point_2 = (x, y)
+                    
+    elif event == cv2.EVENT_MBUTTONDOWN:
+        if edit_mode == False:
+            edit_mode = True
+        elif edit_mode == True:
+            edit_mode = False
 
+        display_text("edit mode: " + edit_mode, 1000)
 
 def get_close_icon(x1, y1, x2, y2):
     percentage = 0.05
@@ -733,7 +740,6 @@ if __name__ == "__main__":
 
     # initialize
     set_img_index(0)
-    edges_on = False
 
     display_text("Welcome!\n Press [h] for help.", 4000)
 
@@ -743,12 +749,8 @@ if __name__ == "__main__":
     # ===================================================================================================================
     while True:
         color = class_rgb[class_index].tolist()
-        # clone the img
-        tmp_img = img.copy()
+        tmp_img = img.copy() # clone the img
         height, width = tmp_img.shape[:2]
-        if edges_on == True:
-            # draw edges
-            tmp_img = draw_edges(tmp_img)
         # draw vertical and horizontal guide lines
         draw_line(tmp_img, mouse_x, mouse_y, height, width)
         # write selected class
@@ -789,51 +791,50 @@ if __name__ == "__main__":
         cv2.imshow(WINDOW_NAME, tmp_img)
         pressed_key = cv2.waitKey(DELAY)
 
+        """ Key Listeners START """
         if dragBBox.anchor_being_dragged is None:
-            """ Key Listeners START """
             if pressed_key == ord("a") or pressed_key == ord("d"):
-                # show previous image key listener
+
                 if pressed_key == ord("a"):
                     img_index = decrease_index(img_index, last_img_index)
-                # show next image key listener
                 elif pressed_key == ord("d"):
                     img_index = increase_index(img_index, last_img_index)
+
                 set_img_index(img_index)
                 cv2.setTrackbarPos(TRACKBAR_IMG, WINDOW_NAME, img_index)
+
             elif pressed_key == ord("s") or pressed_key == ord("w"):
-                # change down current class key listener
+
                 if pressed_key == ord("s"):
                     class_index = decrease_index(class_index, last_class_index)
-                # change up current class key listener
                 elif pressed_key == ord("w"):
                     class_index = increase_index(class_index, last_class_index)
+
                 draw_line(tmp_img, mouse_x, mouse_y, height, width)
                 set_class_index(class_index)
                 cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
+
                 if is_bbox_selected:
                     obj_to_edit = img_objects[selected_bbox]
                     edit_bbox(obj_to_edit, "change_class:{}".format(class_index))
-            # help key listener
+
             elif pressed_key == ord("h"):
                 text = (
-                    "[e] to show edges;\n"
-                    "[q] to quit;\n"
+                    "[m] to change drawing mode \n"
                     "[a] or [d] to change Image;\n"
                     "[w] or [s] to change Class.\n"
+                    "[q] to quit;\n"
                 )
                 display_text(text, 5000)
-            # show edges key listener
-            elif pressed_key == ord("e"):
-                if edges_on == True:
-                    edges_on = False
-                    display_text("Edges turned OFF!", 1000)
-                else:
-                    edges_on = True
-                    display_text("Edges turned ON!", 1000)
 
-            # quit key listener
+            elif pressed_key == ord("m"):
+                if drawing_mode == "drag":
+                    drawing_mode = "click"
+                elif drawing_mode == "click":
+                    drawing_mode = "drag"
+
+                display_text("drawing mode switched to: " + drawing_mode, 1000)
+
             elif pressed_key == ord("q"):
+                cv2.destroyAllWindows()
                 break
-            """ Key Listeners END """
-
-    cv2.destroyAllWindows()
