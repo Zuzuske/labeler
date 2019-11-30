@@ -2,6 +2,7 @@ import os
 import re
 import cv2
 import numpy as np
+import pyautogui
 import xml.etree.cElementTree as ET
 from lxml import etree
 
@@ -508,6 +509,8 @@ def mouse_listener(event, x, y, flags, param):
         if prev_was_double_click:
             # print('Finish double click')
             prev_was_double_click = False
+    elif event == cv2.EVENT_LBUTTONUP:
+        pyautogui.click()
 
         # print('Normal left click')
 
