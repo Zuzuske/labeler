@@ -2,7 +2,6 @@ import os
 import re
 import cv2
 import numpy as np
-import pyautogui
 import xml.etree.cElementTree as ET
 from lxml import etree
 
@@ -15,12 +14,12 @@ img_objects = []
 
 INPUT_DIR = "input"
 OUTPUT_DIR = "output"
-WINDOW_NAME = "open-labeling"
+WINDOW_NAME = "labeler"
 TRACKBAR_IMG = "Image"
 TRACKBAR_CLASS = "Class"
 LINE_THICKNESS = 1
 
-cursor_line_color = (0, 0 ,255)
+cursor_line_color = (0, 0, 255)
 
 annotation_formats = {"PASCAL_VOC": ".xml", "YOLO_darknet": ".txt"}
 
@@ -33,6 +32,8 @@ mouse_x = 0
 mouse_y = 0
 point_1 = (-1, -1)
 point_2 = (-1, -1)
+
+mode = "drag"
 
 """
     0,0 ------> x (width)
@@ -212,6 +213,7 @@ def increase_index(current_index, last_index):
     if current_index > last_index:
         current_index = 0
     return current_index
+
 
 # Draws cursor extending lines
 def draw_line(img, x, y, height, width):
@@ -509,10 +511,8 @@ def mouse_listener(event, x, y, flags, param):
         if prev_was_double_click:
             # print('Finish double click')
             prev_was_double_click = False
-    elif event == cv2.EVENT_LBUTTONUP:
-        pyautogui.click()
 
-        # print('Normal left click')
+        # print("Normal left click")
 
         # Check if mouse inside on of resizing anchors of any bboxes
         # changed
@@ -530,15 +530,25 @@ def mouse_listener(event, x, y, flags, param):
                     # first click (start drawing a bounding box or delete an item)
                     point_1 = (x, y)
             else:
-                # minimal size for bounding box to avoid errors
-                threshold = 5
-                if abs(x - point_1[0]) > threshold or abs(y - point_1[1]) > threshold:
-                    # second click
-                    point_2 = (x, y)
+                if mode == "click":
+                    # minimal size for bounding box to avoid errors
+                    threshold = 5
+                    if (
+                        abs(x - point_1[0]) > threshold
+                        or abs(y - point_1[1]) > threshold
+                    ):
+                        # second click
+                        point_2 = (x, y)
 
     elif event == cv2.EVENT_LBUTTONUP:
         if dragBBox.anchor_being_dragged is not None:
             dragBBox.handler_left_mouse_up(x, y)
+        else:
+            if mode == "drag":
+                threshold = 5
+                if abs(x - point_1[0]) > threshold or abs(y - point_1[1]) > threshold:
+                    # second click
+                    point_2 = (x, y)
 
 
 def get_close_icon(x1, y1, x2, y2):
@@ -708,7 +718,7 @@ if __name__ == "__main__":
         class_rgb = np.vstack([class_rgb, more_colors])
 
     # create window
-    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_KEEPRATIO)
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_GUI_NORMAL)
     cv2.resizeWindow(WINDOW_NAME, 1000, 700)
     cv2.setMouseCallback(WINDOW_NAME, mouse_listener)
 
