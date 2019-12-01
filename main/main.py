@@ -126,6 +126,7 @@ class dragBBox:
                 if eX < x_right - margin:
                     x_left = eX
                     change_was_made = True
+
             elif dragBBox.anchor_being_dragged[0] == "R":
                 # right anchors (RT, RM, RB)
                 if eX > x_left + margin:
@@ -158,8 +159,8 @@ class dragBBox:
                 ]
 
     """
-    \brief This method will reset this class
-     """
+    This method will reset this class
+    """
 
     @staticmethod
     def handler_left_mouse_up(eX, eY):
@@ -190,16 +191,6 @@ def set_class_index(x):
         str(class_index), str(last_class_index), CLASS_LIST[class_index]
     )
     display_text(text, 3000)
-
-
-def draw_edges(tmp_img):
-    blur = cv2.bilateralFilter(tmp_img, 3, 75, 75)
-    edges = cv2.Canny(blur, 150, 250, 3)
-    edges = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
-    # Overlap image and edges together
-    tmp_img = np.bitwise_or(tmp_img, edges)
-    # tmp_img = cv2.addWeighted(tmp_img, 1 - edges_val, edges, edges_val, 0)
-    return tmp_img
 
 
 def decrease_index(current_index, last_index):
@@ -345,7 +336,7 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
         annotation = tree.getroot()
         for obj in annotation.findall("object"):
             class_name, class_index, xmin, ymin, xmax, ymax = get_xml_object_data(obj)
-            # print('{} {} {} {} {}'.format(class_index, xmin, ymin, xmax, ymax))
+            #print('{} {} {} {} {}'.format(class_index, xmin, ymin, xmax, ymax))
             img_objects.append([class_index, xmin, ymin, xmax, ymax])
             color = class_rgb[class_index].tolist()
             # draw bbox
@@ -705,22 +696,7 @@ if __name__ == "__main__":
 
     # Make the class colors the same each session
     # The colors are in BGR order because we're using OpenCV
-    class_rgb = [
-        (0, 255, 0),
-        (255, 0, 0),
-        (0, 0, 255),
-        (255, 255, 0),
-        (0, 255, 255),
-        (255, 0, 255),
-        (192, 192, 192),
-        (128, 128, 128),
-        (128, 0, 0),
-        (128, 128, 0),
-        (0, 128, 0),
-        (128, 0, 128),
-        (0, 128, 128),
-        (0, 0, 128),
-    ]
+    class_rgb = [(178, 103, 66)]
     class_rgb = np.array(class_rgb)
     # If there are still more classes, add new colors randomly
     num_colors_missing = len(CLASS_LIST) - len(class_rgb)
@@ -865,14 +841,14 @@ if __name__ == "__main__":
                     drawing_mode = "click"
                 elif drawing_mode == "click":
                     drawing_mode = "drag"
-                    
+
                 display_text("drawing mode switched to: " + drawing_mode, 1000)
 
             elif pressed_key == ord("e"):
-                if edit_mode == False:
-                    edit_mode = True
-                elif edit_mode == True:
+                if edit_mode:
                     edit_mode = False
+                else:
+                    edit_mode = True
 
                 display_text("edit mode enabled: " + str(edit_mode), 1000)
 
@@ -885,5 +861,6 @@ if __name__ == "__main__":
                 display_text("labels enabled: " + str(label_text), 1000)
 
             elif pressed_key == ord("q"):
+                print(IMAGE_PATH_LIST)
                 cv2.destroyAllWindows()
                 break
