@@ -35,6 +35,7 @@ point_2 = (-1, -1)
 
 drawing_mode = "drag"
 edit_mode = False
+label_text = False
 
 """
     0,0 ------> x (width)
@@ -65,13 +66,12 @@ class dragBBox:
     """
 
     # Size of resizing anchors (depends on LINE_THICKNESS)
-    sRA = LINE_THICKNESS * 2
+    sRA = LINE_THICKNESS * 1
 
     # Object being dragged
     selected_object = None
 
     # Flag indicating which resizing-anchor is dragged
-    # changed might break anchor boxes
     anchor_being_dragged = None
 
     """
@@ -351,11 +351,23 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
             # draw bbox
             cv2.rectangle(tmp_img, (xmin, ymin), (xmax, ymax), color, LINE_THICKNESS)
 
-            # changed
             # draw resizing anchors
-            # tmp_img = draw_bbox_anchors(tmp_img, xmin, ymin, xmax, ymax, color)
-            # font = cv2.FONT_HERSHEY_SIMPLEX
-            # cv2.putText(tmp_img, class_name, (xmin, ymin - 5), font, 0.6, color, LINE_THICKNESS, cv2.LINE_AA)
+            if edit_mode == True:
+                tmp_img = draw_bbox_anchors(tmp_img, xmin, ymin, xmax, ymax, color)
+
+            # draw labels
+            if label_text == True:
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(
+                    tmp_img,
+                    class_name,
+                    (xmin, ymin - 5),
+                    font,
+                    0.6,
+                    color,
+                    LINE_THICKNESS,
+                    cv2.LINE_AA,
+                )
     return tmp_img
 
 
@@ -515,8 +527,8 @@ def mouse_listener(event, x, y, flags, param):
         # print("Normal left click")
 
         # Check if mouse inside on of resizing anchors of any bboxes
-        # changed
-        # dragBBox.handler_left_mouse_down(x, y, img_objects)
+        if edit_mode:
+            dragBBox.handler_left_mouse_down(x, y, img_objects)
 
         if dragBBox.anchor_being_dragged is None:
             if point_1[0] is -1:
@@ -549,14 +561,7 @@ def mouse_listener(event, x, y, flags, param):
                 if abs(x - point_1[0]) > threshold or abs(y - point_1[1]) > threshold:
                     # second click
                     point_2 = (x, y)
-                    
-    elif event == cv2.EVENT_MBUTTONDOWN:
-        if edit_mode == False:
-            edit_mode = True
-        elif edit_mode == True:
-            edit_mode = False
 
-        display_text("edit mode: " + edit_mode, 1000)
 
 def get_close_icon(x1, y1, x2, y2):
     percentage = 0.05
@@ -649,7 +654,6 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 if __name__ == "__main__":
     # load all images and videos (with multiple extensions) from a directory using OpenCV
-    # removed video functionality
     IMAGE_PATH_LIST = []
     for f in sorted(os.listdir(INPUT_DIR), key=natural_sort_key):
         f_path = os.path.join(INPUT_DIR, f)
@@ -749,10 +753,14 @@ if __name__ == "__main__":
     # ===================================================================================================================
     while True:
         color = class_rgb[class_index].tolist()
-        tmp_img = img.copy() # clone the img
+
+        tmp_img = img.copy()  # clone the img
+
         height, width = tmp_img.shape[:2]
+
         # draw vertical and horizontal guide lines
         draw_line(tmp_img, mouse_x, mouse_y, height, width)
+
         # write selected class
         class_name = CLASS_LIST[class_index]
         font = cv2.FONT_HERSHEY_SIMPLEX
@@ -761,19 +769,41 @@ if __name__ == "__main__":
         text_width, text_height = cv2.getTextSize(
             class_name, font, font_scale, LINE_THICKNESS
         )[0]
-        # changed
-        # tmp_img = cv2.rectangle(tmp_img, (mouse_x + LINE_THICKNESS, mouse_y - LINE_THICKNESS), (mouse_x + text_width + margin, mouse_y - text_height - margin), complement_bgr(color), -1)
-        # tmp_img = cv2.putText(tmp_img, class_name, (mouse_x + margin, mouse_y - margin), font, font_scale, color, LINE_THICKNESS, cv2.LINE_AA)
+
+        # adds label near cursor for what class is currently active
+        if label_text:
+            tmp_img = cv2.rectangle(
+                tmp_img,
+                (mouse_x + LINE_THICKNESS, mouse_y - LINE_THICKNESS),
+                (mouse_x + text_width + margin, mouse_y - text_height - margin),
+                complement_bgr(color),
+                -1,
+            )
+            tmp_img = cv2.putText(
+                tmp_img,
+                class_name,
+                (mouse_x + margin, mouse_y - margin),
+                font,
+                font_scale,
+                color,
+                LINE_THICKNESS,
+                cv2.LINE_AA,
+            )
+
         # get annotation paths
         img_path = IMAGE_PATH_LIST[img_index]
         annotation_paths = get_annotation_paths(img_path, annotation_formats)
+
         if dragBBox.anchor_being_dragged is not None:
             dragBBox.handler_mouse_move(mouse_x, mouse_y)
+
         # draw already done bounding boxes
         tmp_img = draw_bboxes_from_file(tmp_img, annotation_paths, width, height)
+
         # if bounding box is selected add extra info
         if is_bbox_selected:
             tmp_img = draw_info_bb_selected(tmp_img)
+
         # if first click
         if point_1[0] is not -1:
             # draw partial bbox
@@ -820,9 +850,12 @@ if __name__ == "__main__":
 
             elif pressed_key == ord("h"):
                 text = (
+                    "[e] to enable/disable edit mode \n"
+                    "[t] to enable/disable labels \n"
                     "[m] to change drawing mode \n"
                     "[a] or [d] to change Image;\n"
                     "[w] or [s] to change Class.\n"
+                    "\n"
                     "[q] to quit;\n"
                 )
                 display_text(text, 5000)
@@ -832,8 +865,24 @@ if __name__ == "__main__":
                     drawing_mode = "click"
                 elif drawing_mode == "click":
                     drawing_mode = "drag"
-
+                    
                 display_text("drawing mode switched to: " + drawing_mode, 1000)
+
+            elif pressed_key == ord("e"):
+                if edit_mode == False:
+                    edit_mode = True
+                elif edit_mode == True:
+                    edit_mode = False
+
+                display_text("edit mode enabled: " + str(edit_mode), 1000)
+
+            elif pressed_key == ord("t"):
+                if label_text == False:
+                    label_text = True
+                elif label_text == True:
+                    label_text = False
+
+                display_text("labels enabled: " + str(label_text), 1000)
 
             elif pressed_key == ord("q"):
                 cv2.destroyAllWindows()
