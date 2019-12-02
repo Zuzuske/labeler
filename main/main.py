@@ -5,6 +5,9 @@ import numpy as np
 import xml.etree.cElementTree as ET
 from lxml import etree
 
+import ast
+
+
 DELAY = 20  # keyboard delay (in milliseconds)
 
 class_index = 0
@@ -294,6 +297,18 @@ def get_xml_object_data(obj):
     return [class_name, class_index, xmin, ymin, xmax, ymax]
 
 
+def get_txt_object_data(obj):
+
+    class_name = obj.find("name").text
+    class_index = CLASS_LIST.index(class_name)
+    bndbox = obj.find("bndbox")
+    xmin = int(bndbox.find("xmin").text)
+    xmax = int(bndbox.find("xmax").text)
+    ymin = int(bndbox.find("ymin").text)
+    ymax = int(bndbox.find("ymax").text)
+    return [class_name, class_index, xmin, ymin, xmax, ymax]
+
+
 def get_anchors_rectangles(xmin, ymin, xmax, ymax):
     anchor_list = {}
 
@@ -330,13 +345,29 @@ def draw_bbox_anchors(tmp_img, xmin, ymin, xmax, ymax, color):
 def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
     global img_objects
     img_objects = []
+
+    # parse whole txt file and male a list of arrays
+    # for each item in txt list get_txt_object_data
+
+    ann_path = next(path for path in annotation_paths if "YOLO_darknet" in path)
+    if os.path.isfile(ann_path):
+
+        yolo_list = None
+        tuple_list = list
+        with open(ann_path) as txt:
+            yolo_list = list(txt)
+
+        for item in yolo_list:
+            res = tuple(map(str, item.split(" ")))
+
     ann_path = next(path for path in annotation_paths if "PASCAL_VOC" in path)
+
     if os.path.isfile(ann_path):
         tree = ET.parse(ann_path)
         annotation = tree.getroot()
         for obj in annotation.findall("object"):
             class_name, class_index, xmin, ymin, xmax, ymax = get_xml_object_data(obj)
-            #print('{} {} {} {} {}'.format(class_index, xmin, ymin, xmax, ymax))
+
             img_objects.append([class_index, xmin, ymin, xmax, ymax])
             color = class_rgb[class_index].tolist()
             # draw bbox
@@ -646,15 +677,20 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 if __name__ == "__main__":
     # load all images and videos (with multiple extensions) from a directory using OpenCV
     IMAGE_PATH_LIST = []
-    for f in sorted(os.listdir(INPUT_DIR), key=natural_sort_key):
-        f_path = os.path.join(INPUT_DIR, f)
-        if os.path.isdir(f_path):
-            # skip directories
+
+    files = sorted(os.listdir(INPUT_DIR), key=natural_sort_key)
+
+    for item in files:
+        file_path = os.path.join(INPUT_DIR, item)
+
+        # check if it is a directory
+        if os.path.isdir(file_path):
             continue
-        # check if it is an image
-        test_img = cv2.imread(f_path)
+
+        # check if file is an image
+        test_img = cv2.imread(file_path)
         if test_img is not None:
-            IMAGE_PATH_LIST.append(f_path)
+            IMAGE_PATH_LIST.append(file_path)
 
     last_img_index = len(IMAGE_PATH_LIST) - 1
 
@@ -724,9 +760,9 @@ if __name__ == "__main__":
     display_text("Welcome!\n Press [h] for help.", 4000)
 
     # Runtime loop
-    # ===================================================================================================================
-    # ===================================================================================================================
-    # ===================================================================================================================
+    # ============================================================================
+    # ============================================================================
+    # ============================================================================
     while True:
         color = class_rgb[class_index].tolist()
 
@@ -746,7 +782,7 @@ if __name__ == "__main__":
             class_name, font, font_scale, LINE_THICKNESS
         )[0]
 
-        # adds label near cursor for what class is currently active
+        # adds label near cursor for what class is currently active if label_text = true
         if label_text:
             tmp_img = cv2.rectangle(
                 tmp_img,
