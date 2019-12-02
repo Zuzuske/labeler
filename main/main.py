@@ -297,18 +297,6 @@ def get_xml_object_data(obj):
     return [class_name, class_index, xmin, ymin, xmax, ymax]
 
 
-def get_txt_object_data(obj):
-
-    class_name = obj.find("name").text
-    class_index = CLASS_LIST.index(class_name)
-    bndbox = obj.find("bndbox")
-    xmin = int(bndbox.find("xmin").text)
-    xmax = int(bndbox.find("xmax").text)
-    ymin = int(bndbox.find("ymin").text)
-    ymax = int(bndbox.find("ymax").text)
-    return [class_name, class_index, xmin, ymin, xmax, ymax]
-
-
 def get_anchors_rectangles(xmin, ymin, xmax, ymax):
     anchor_list = {}
 
@@ -353,15 +341,41 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
     if os.path.isfile(ann_path):
 
         yolo_list = None
-        tuple_list = list
+
         with open(ann_path) as txt:
-            yolo_list = list(txt)
+            yolo_list = txt.read().splitlines()
 
         for item in yolo_list:
-            res = tuple(map(str, item.split(" ")))
+            obj = tuple(map(str, item.split(" ")))
+            # write get txt data method
+            class_name, class_index, xmin, ymin, xmax, ymax = get_xml_object_data(
+                obj, width, height
+            )
+
+            img_objects.append([class_index, xmin, ymin, xmax, ymax])
+            color = class_rgb[class_index].tolist()
+            # draw bbox
+            cv2.rectangle(tmp_img, (xmin, ymin), (xmax, ymax), color, LINE_THICKNESS)
+
+            # draw resizing anchors
+            if edit_mode == True:
+                tmp_img = draw_bbox_anchors(tmp_img, xmin, ymin, xmax, ymax, color)
+
+            # draw labels
+            if label_text == True:
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(
+                    tmp_img,
+                    class_name,
+                    (xmin, ymin - 5),
+                    font,
+                    0.6,
+                    color,
+                    LINE_THICKNESS,
+                    cv2.LINE_AA,
+                )
 
     ann_path = next(path for path in annotation_paths if "PASCAL_VOC" in path)
-
     if os.path.isfile(ann_path):
         tree = ET.parse(ann_path)
         annotation = tree.getroot()
