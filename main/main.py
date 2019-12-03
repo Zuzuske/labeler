@@ -5,9 +5,6 @@ import numpy as np
 import xml.etree.cElementTree as ET
 from lxml import etree
 
-import ast
-
-
 DELAY = 20  # keyboard delay (in milliseconds)
 
 class_index = 0
@@ -36,9 +33,11 @@ mouse_y = 0
 point_1 = (-1, -1)
 point_2 = (-1, -1)
 
+read_file = "yolo"
 drawing_mode = "drag"
 edit_mode = False
 label_text = False
+
 
 """
     0,0 ------> x (width)
@@ -182,7 +181,7 @@ def set_img_index(x):
     img_path = IMAGE_PATH_LIST[img_index]
     img = cv2.imread(img_path)
     text = "Showing image {}/{}, path: {}".format(
-        str(img_index), str(last_img_index), img_path
+        str(img_index + 1), str(last_img_index + 1), img_path
     )
     display_text(text, 1000)
 
@@ -286,14 +285,31 @@ def yolo_to_voc(x_center, y_center, x_width, y_height, width, height):
     return xmin, ymin, xmax, ymax
 
 
-def get_xml_object_data(obj):
-    class_name = obj.find("name").text
+def get_xml_object_data(data):
+    class_name = data.find("name").text
     class_index = CLASS_LIST.index(class_name)
-    bndbox = obj.find("bndbox")
+    bndbox = data.find("bndbox")
     xmin = int(bndbox.find("xmin").text)
     xmax = int(bndbox.find("xmax").text)
     ymin = int(bndbox.find("ymin").text)
     ymax = int(bndbox.find("ymax").text)
+    return [class_name, class_index, xmin, ymin, xmax, ymax]
+
+
+def get_txt_object_data(data, image_width, image_height):
+    class_name = CLASS_LIST[int(data[0])]
+    class_index = int(data[0])
+
+    bbox_width = float(data[3]) * image_width
+    bbox_height = float(data[4]) * image_height
+    center_x = float(data[1]) * image_width
+    center_y = float(data[2]) * image_height
+
+    xmin = int(round(center_x - (bbox_width / 2)))
+    ymin = int(round(center_y - (bbox_height / 2)))
+    xmax = int(round(center_x + (bbox_width / 2)))
+    ymax = int(round(center_y + (bbox_height / 2)))
+
     return [class_name, class_index, xmin, ymin, xmax, ymax]
 
 
@@ -334,76 +350,84 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
     global img_objects
     img_objects = []
 
-    # parse whole txt file and male a list of arrays
-    # for each item in txt list get_txt_object_data
+    if read_file == "yolo":
+        ann_path = next(path for path in annotation_paths if "YOLO_darknet" in path)
 
-    ann_path = next(path for path in annotation_paths if "YOLO_darknet" in path)
-    if os.path.isfile(ann_path):
+        if os.path.isfile(ann_path):
 
-        yolo_list = None
+            with open(ann_path) as file:
+                lines = file.read().splitlines()
+                for line in lines:
+                    # line = line.strip()
+                    data = line.split()
 
-        with open(ann_path) as txt:
-            yolo_list = txt.read().splitlines()
+                    class_name, class_index, xmin, ymin, xmax, ymax = get_txt_object_data(
+                        data, width, height
+                    )
 
-        for item in yolo_list:
-            obj = tuple(map(str, item.split(" ")))
-            # write get txt data method
-            class_name, class_index, xmin, ymin, xmax, ymax = get_xml_object_data(
-                obj, width, height
-            )
+                    img_objects.append([class_index, xmin, ymin, xmax, ymax])
+                    color = class_rgb[class_index].tolist()
 
-            img_objects.append([class_index, xmin, ymin, xmax, ymax])
-            color = class_rgb[class_index].tolist()
-            # draw bbox
-            cv2.rectangle(tmp_img, (xmin, ymin), (xmax, ymax), color, LINE_THICKNESS)
+                    # draw bbox
+                    cv2.rectangle(
+                        tmp_img, (xmin, ymin), (xmax, ymax), color, LINE_THICKNESS
+                    )
 
-            # draw resizing anchors
-            if edit_mode == True:
-                tmp_img = draw_bbox_anchors(tmp_img, xmin, ymin, xmax, ymax, color)
+                    # draw resizing anchors
+                    if edit_mode == True:
+                        tmp_img = draw_bbox_anchors(
+                            tmp_img, xmin, ymin, xmax, ymax, color
+                        )
 
-            # draw labels
-            if label_text == True:
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                cv2.putText(
-                    tmp_img,
-                    class_name,
-                    (xmin, ymin - 5),
-                    font,
-                    0.6,
-                    color,
-                    LINE_THICKNESS,
-                    cv2.LINE_AA,
+                    # draw labels
+                    if label_text == True:
+                        font = cv2.FONT_HERSHEY_SIMPLEX
+                        cv2.putText(
+                            tmp_img,
+                            class_name,
+                            (xmin, ymin - 5),
+                            font,
+                            0.6,
+                            color,
+                            LINE_THICKNESS,
+                            cv2.LINE_AA,
+                        )
+
+    elif read_file == "pascal":
+        ann_path = next(path for path in annotation_paths if "PASCAL_VOC" in path)
+
+        if os.path.isfile(ann_path):
+            tree = ET.parse(ann_path)
+            annotation = tree.getroot()
+            for obj in annotation.findall("object"):
+                class_name, class_index, xmin, ymin, xmax, ymax = get_xml_object_data(
+                    obj
                 )
 
-    ann_path = next(path for path in annotation_paths if "PASCAL_VOC" in path)
-    if os.path.isfile(ann_path):
-        tree = ET.parse(ann_path)
-        annotation = tree.getroot()
-        for obj in annotation.findall("object"):
-            class_name, class_index, xmin, ymin, xmax, ymax = get_xml_object_data(obj)
-
-            img_objects.append([class_index, xmin, ymin, xmax, ymax])
-            color = class_rgb[class_index].tolist()
-            # draw bbox
-            cv2.rectangle(tmp_img, (xmin, ymin), (xmax, ymax), color, LINE_THICKNESS)
-
-            # draw resizing anchors
-            if edit_mode == True:
-                tmp_img = draw_bbox_anchors(tmp_img, xmin, ymin, xmax, ymax, color)
-
-            # draw labels
-            if label_text == True:
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                cv2.putText(
-                    tmp_img,
-                    class_name,
-                    (xmin, ymin - 5),
-                    font,
-                    0.6,
-                    color,
-                    LINE_THICKNESS,
-                    cv2.LINE_AA,
+                img_objects.append([class_index, xmin, ymin, xmax, ymax])
+                color = class_rgb[class_index].tolist()
+                # draw bbox
+                cv2.rectangle(
+                    tmp_img, (xmin, ymin), (xmax, ymax), color, LINE_THICKNESS
                 )
+
+                # draw resizing anchors
+                if edit_mode == True:
+                    tmp_img = draw_bbox_anchors(tmp_img, xmin, ymin, xmax, ymax, color)
+
+                # draw labels
+                if label_text == True:
+                    font = cv2.FONT_HERSHEY_SIMPLEX
+                    cv2.putText(
+                        tmp_img,
+                        class_name,
+                        (xmin, ymin - 5),
+                        font,
+                        0.6,
+                        color,
+                        LINE_THICKNESS,
+                        cv2.LINE_AA,
+                    )
     return tmp_img
 
 
@@ -689,18 +713,16 @@ def complement_bgr(color):
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 if __name__ == "__main__":
-    # load all images and videos (with multiple extensions) from a directory using OpenCV
+    # load all images
     IMAGE_PATH_LIST = []
 
     files = sorted(os.listdir(INPUT_DIR), key=natural_sort_key)
 
     for item in files:
         file_path = os.path.join(INPUT_DIR, item)
-
         # check if it is a directory
         if os.path.isdir(file_path):
             continue
-
         # check if file is an image
         test_img = cv2.imread(file_path)
         if test_img is not None:
@@ -741,7 +763,7 @@ if __name__ == "__main__":
     # load class list
     with open("class_list.txt") as f:
         CLASS_LIST = list(nonblank_lines(f))
-    # print(CLASS_LIST)
+
     last_class_index = len(CLASS_LIST) - 1
 
     # Make the class colors the same each session
@@ -768,15 +790,11 @@ if __name__ == "__main__":
             TRACKBAR_CLASS, WINDOW_NAME, 0, last_class_index, set_class_index
         )
 
+    # welcome
+    display_text("Welcome!\n Press [h] for help.", 5000)
     # initialize
     set_img_index(0)
-
-    display_text("Welcome!\n Press [h] for help.", 4000)
-
     # Runtime loop
-    # ============================================================================
-    # ============================================================================
-    # ============================================================================
     while True:
         color = class_rgb[class_index].tolist()
 
@@ -850,24 +868,27 @@ if __name__ == "__main__":
         """ Key Listeners START """
         if dragBBox.anchor_being_dragged is None:
             if pressed_key == ord("a") or pressed_key == ord("d"):
-
                 if pressed_key == ord("a"):
                     img_index = decrease_index(img_index, last_img_index)
                 elif pressed_key == ord("d"):
                     img_index = increase_index(img_index, last_img_index)
 
-                set_img_index(img_index)
+                # not using set_img_index here bacause cv2.setTrackbarPos calls this method
+                # set_img_index(img_index)
+                # trackbar has onChange method, and invoking cv2.setTrackbarPos
+                # changes posittion whitch in effect runs onChange method
                 cv2.setTrackbarPos(TRACKBAR_IMG, WINDOW_NAME, img_index)
 
             elif pressed_key == ord("s") or pressed_key == ord("w"):
-
                 if pressed_key == ord("s"):
                     class_index = decrease_index(class_index, last_class_index)
                 elif pressed_key == ord("w"):
                     class_index = increase_index(class_index, last_class_index)
 
-                draw_line(tmp_img, mouse_x, mouse_y, height, width)
-                set_class_index(class_index)
+                # not using set_class_index here bacause cv2.setTrackbarPos calls this method
+                # set_class_index(class_index)
+                # trackbar has onChange method, and invoking cv2.setTrackbarPos
+                # changes posittion whitch in effect runs onChange method
                 cv2.setTrackbarPos(TRACKBAR_CLASS, WINDOW_NAME, class_index)
 
                 if is_bbox_selected:
@@ -903,10 +924,10 @@ if __name__ == "__main__":
                 display_text("edit mode enabled: " + str(edit_mode), 1000)
 
             elif pressed_key == ord("t"):
-                if label_text == False:
-                    label_text = True
-                elif label_text == True:
+                if label_text:
                     label_text = False
+                else:
+                    label_text = True
 
                 display_text("labels enabled: " + str(label_text), 1000)
 
