@@ -352,13 +352,11 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
 
     if read_file == "yolo":
         ann_path = next(path for path in annotation_paths if "YOLO_darknet" in path)
-
         if os.path.isfile(ann_path):
-
             with open(ann_path) as file:
-                lines = file.read().splitlines()
+                lines = list(nonblank_lines(file))
                 for line in lines:
-                    # line = line.strip()
+                    line = line.strip()
                     data = line.split()
 
                     class_name, class_index, xmin, ymin, xmax, ymax = get_txt_object_data(
@@ -395,7 +393,6 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
 
     elif read_file == "pascal":
         ann_path = next(path for path in annotation_paths if "PASCAL_VOC" in path)
-
         if os.path.isfile(ann_path):
             tree = ET.parse(ann_path)
             annotation = tree.getroot()
@@ -564,6 +561,7 @@ def mouse_listener(event, x, y, flags, param):
     if event == cv2.EVENT_MOUSEMOVE:
         mouse_x = x
         mouse_y = y
+
     elif event == cv2.EVENT_LBUTTONDBLCLK:
         prev_was_double_click = True
         # print('Double click')
@@ -571,7 +569,7 @@ def mouse_listener(event, x, y, flags, param):
         # if clicked inside a bounding box we set that bbox
         set_class = True
         set_selected_bbox(set_class)
-    # By AlexeyGy: delete via right-click
+
     elif event == cv2.EVENT_RBUTTONDOWN:
         set_class = False
         set_selected_bbox(set_class)
@@ -579,12 +577,11 @@ def mouse_listener(event, x, y, flags, param):
             obj_to_edit = img_objects[selected_bbox]
             edit_bbox(obj_to_edit, "delete")
             is_bbox_selected = False
+
     elif event == cv2.EVENT_LBUTTONDOWN:
         if prev_was_double_click:
             # print('Finish double click')
             prev_was_double_click = False
-
-        # print("Normal left click")
 
         # Check if mouse inside on of resizing anchors of any bboxes
         if edit_mode:
