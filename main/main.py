@@ -7,10 +7,22 @@ from lxml import etree
 
 DELAY = 20  # keyboard delay (in milliseconds)
 
+mouse_x = 0
+mouse_y = 0
+point_1 = (-1, -1)
+point_2 = (-1, -1)
+
 class_index = 0
 img_index = 0
 img = None
 img_objects = []
+
+# selected bounding box
+prev_was_double_click = False
+is_bbox_selected = False
+selected_bbox = -1
+
+annotation_formats = {"YOLO_darknet": ".txt", "PASCAL_VOC": ".xml"}
 
 INPUT_DIR = "input"
 OUTPUT_DIR = "output"
@@ -19,24 +31,17 @@ TRACKBAR_IMG = "Image"
 TRACKBAR_CLASS = "Class"
 LINE_THICKNESS = 1
 
-cursor_line_color = (0, 0, 255)
 
-annotation_formats = {"PASCAL_VOC": ".xml", "YOLO_darknet": ".txt"}
-
-# selected bounding box
-prev_was_double_click = False
-is_bbox_selected = False
-selected_bbox = -1
-
-mouse_x = 0
-mouse_y = 0
-point_1 = (-1, -1)
-point_2 = (-1, -1)
-
-read_file = "yolo"
-drawing_mode = "drag"
+read_file = "yolo"  # pascal
+drawing_mode = "drag"  # click
 edit_mode = False
 label_text = False
+cursor_line_color = (0, 0, 255)
+
+TRAINING_DIR = "data/train/"
+TESTING_DIR = "data/test/"
+training_text_file = "data/train.txt"
+testing_text_file = "data/test.txt"
 
 
 """
@@ -706,13 +711,99 @@ def complement_bgr(color):
     return tuple(k - u for u in color)
 
 
+# if imported yolo list is not sixteen numbers decimal like -> 0.925480
+# this method converts it to nine decimal like -> 0.9254807692307693
+# but not in all cases, after conversion you will be able to delete/edit bboxes
+def convert_yolo_to_yolo_annotation_file():
+    current_img_path = IMAGE_PATH_LIST[img_index]
+
+    yolo_list = []
+
+    for item in img_objects:
+        class_index, xmin, ymin, xmax, ymax = map(int, item)
+        yolo_line = yolo_format(class_index, (xmin, ymin), (xmax, ymax), width, height)
+        yolo_list.append(yolo_line)
+
+    for ann_path in get_annotation_paths(current_img_path, annotation_formats):
+        if ".txt" in ann_path:
+            with open(ann_path, "w") as new_file:
+                for line in yolo_list:
+                    new_file.write(line + "\n")
+
+                display_text("Converted " + ann_path + " annotation file", 1000)
+
+
+def create_directories_and_files():
+    # create input dir
+    if not os.path.exists(INPUT_DIR):
+        os.makedirs(INPUT_DIR)
+
+    # create output directories
+    for ann_dir in annotation_formats:
+        new_dir = os.path.join(OUTPUT_DIR, ann_dir)
+        if not os.path.exists(new_dir):
+            os.makedirs(new_dir)
+
+    # create training dirs and files
+    if not os.path.exists(TRAINING_DIR):
+        os.makedirs(TRAINING_DIR)
+    if not os.path.isfile(training_text_file):
+        open(training_text_file, "a").close()
+
+    # create testing dir and files
+    if not os.path.exists(TESTING_DIR):
+        os.makedirs(TESTING_DIR)
+    if not os.path.isfile(testing_text_file):
+        open(testing_text_file, "a").close()
+
+
+"""
+poop code, not dry, maybe should change, too lazy, it works
+preparing darknet data folder for training
+filling training and testing text files with file names
+these text files are used in darnet yolo training
+they tell what data/files are used for deep neural network training and testing
+"""
+
+
+def populate_training_and_testing_text_files():
+    files = sorted(os.listdir(TRAINING_DIR), key=natural_sort_key)
+    with open(training_text_file, "w") as text_file:
+        for item in files:
+            if ".png" in item:
+                item = os.path.join(TRAINING_DIR, item)
+                text_file.write(item + "\n")
+            elif ".jpg" in item:
+                item = os.path.join(TRAINING_DIR, item)
+                text_file.write(item + "\n")
+            elif ".jpeg" in item:
+                item = os.path.join(TRAINING_DIR, item)
+                text_file.write(item + "\n")
+
+    files = sorted(os.listdir(TESTING_DIR), key=natural_sort_key)
+    with open(testing_text_file, "w") as text_file:
+        for item in files:
+            if ".png" in item:
+                item = os.path.join(TESTING_DIR, item)
+                text_file.write(item + "\n")
+            elif ".jpg" in item:
+                item = os.path.join(TESTING_DIR, item)
+                text_file.write(item + "\n")
+            elif ".jpeg" in item:
+                item = os.path.join(TESTING_DIR, item)
+                text_file.write(item + "\n")
+
+
 # change to the directory of this script
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 if __name__ == "__main__":
+    # handle directories here
+    create_directories_and_files()
+    populate_training_and_testing_text_files()
+
     # load all images
     IMAGE_PATH_LIST = []
-
     files = sorted(os.listdir(INPUT_DIR), key=natural_sort_key)
 
     for item in files:
@@ -726,12 +817,6 @@ if __name__ == "__main__":
             IMAGE_PATH_LIST.append(file_path)
 
     last_img_index = len(IMAGE_PATH_LIST) - 1
-
-    # create output directories
-    for ann_dir in annotation_formats:
-        new_dir = os.path.join(OUTPUT_DIR, ann_dir)
-        if not os.path.exists(new_dir):
-            os.makedirs(new_dir)
 
     # create empty annotation files for each image, if it doesn't exist already
     for img_path in IMAGE_PATH_LIST:
@@ -927,6 +1012,12 @@ if __name__ == "__main__":
                     label_text = True
 
                 display_text("labels enabled: " + str(label_text), 1000)
+
+            elif pressed_key == ord("c"):
+                convert_yolo_to_yolo_annotation_file()
+
+            elif pressed_key == ord("l"):
+                populate_training_and_testing_text_files()
 
             elif pressed_key == ord("q"):
                 print(IMAGE_PATH_LIST)

@@ -6,6 +6,8 @@ main/output
 object_detection/models/*
 main/input/
 
+data/
+
 .png
 .jpg
 .jpeg
