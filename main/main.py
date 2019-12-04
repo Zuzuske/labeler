@@ -757,15 +757,11 @@ def create_directories_and_files():
         open(testing_text_file, "a").close()
 
 
-"""
-poop code, not dry, maybe should change, too lazy, it works
-preparing darknet data folder for training
-filling training and testing text files with file names
-these text files are used in darnet yolo training
-they tell what data/files are used for deep neural network training and testing
-"""
-
-
+# poop code, not dry, maybe should change, too lazy, it works
+# preparing darknet data folder for training
+# filling training and testing text files with file names
+# these text files are used in darnet yolo training
+# they tell what data/files are used for deep neural network training and testing
 def populate_training_and_testing_text_files():
     files = sorted(os.listdir(TRAINING_DIR), key=natural_sort_key)
     with open(training_text_file, "w") as text_file:
@@ -793,34 +789,40 @@ def populate_training_and_testing_text_files():
                 item = os.path.join(TESTING_DIR, item)
                 text_file.write(item + "\n")
 
+    display_text("Creating training and testing data list", 1000)
+
 
 # change to the directory of this script
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 if __name__ == "__main__":
-    # handle directories here
+    # handle directories anfd files here
     create_directories_and_files()
-    populate_training_and_testing_text_files()
 
-    # load all images
+    # load images to list
     IMAGE_PATH_LIST = []
     files = sorted(os.listdir(INPUT_DIR), key=natural_sort_key)
-
     for item in files:
         file_path = os.path.join(INPUT_DIR, item)
-        # check if it is a directory
-        if os.path.isdir(file_path):
+
+        if os.path.isdir(file_path):  # check if it is a directory
             continue
-        # check if file is an image
+
         test_img = cv2.imread(file_path)
-        if test_img is not None:
-            IMAGE_PATH_LIST.append(file_path)
+        if test_img is not None:  # check if file is an image
+            IMAGE_PATH_LIST.append(
+                file_path
+            )  # if file is an imge append it to IMAGE_PATH_LIST
+
+    # load class list to list
+    with open("obj.names") as object_names:
+        CLASS_LIST = list(nonblank_lines(object_names))
 
     last_img_index = len(IMAGE_PATH_LIST) - 1
+    last_class_index = len(CLASS_LIST) - 1
 
     # create empty annotation files for each image, if it doesn't exist already
     for img_path in IMAGE_PATH_LIST:
-        # image info for the .xml file
         test_img = cv2.imread(img_path)
         abs_path = os.path.abspath(img_path)
         folder_name = os.path.dirname(img_path)
@@ -842,12 +844,6 @@ if __name__ == "__main__":
                         depth,
                     )
 
-    # load class list
-    with open("class_list.txt") as f:
-        CLASS_LIST = list(nonblank_lines(f))
-
-    last_class_index = len(CLASS_LIST) - 1
-
     # Make the class colors the same each session
     # The colors are in BGR order because we're using OpenCV
     class_rgb = [(178, 103, 66)]
@@ -860,11 +856,15 @@ if __name__ == "__main__":
 
     # create window
     cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_GUI_NORMAL)
-    cv2.resizeWindow(WINDOW_NAME, 1000, 700)
+    cv2.resizeWindow(WINDOW_NAME, 500, 500)
     cv2.setMouseCallback(WINDOW_NAME, mouse_listener)
 
     # selected image
-    cv2.createTrackbar(TRACKBAR_IMG, WINDOW_NAME, 0, last_img_index, set_img_index)
+    if last_img_index != -1:
+        if last_img_index != 0:
+            cv2.createTrackbar(
+                TRACKBAR_IMG, WINDOW_NAME, 0, last_img_index + 1, set_img_index
+            )
 
     # selected class
     if last_class_index != 0:
@@ -874,16 +874,22 @@ if __name__ == "__main__":
 
     # welcome
     display_text("Welcome!\n Press [h] for help.", 5000)
+
     # initialize
-    set_img_index(0)
+    if last_img_index != -1:
+        set_img_index(0)
+
     # Runtime loop
     while True:
-        color = class_rgb[class_index].tolist()
-
-        tmp_img = img.copy()  # clone the img
+        tmp_img = None
+        if last_img_index != -1:
+            tmp_img = img.copy()  # clone the img
+        else:
+            tmp_img = 255 * np.ones(shape=[250, 250, 3], dtype=np.uint8)
 
         height, width = tmp_img.shape[:2]
 
+        color = class_rgb[class_index].tolist()
         # draw vertical and horizontal guide lines
         draw_line(tmp_img, mouse_x, mouse_y, height, width)
 
@@ -916,15 +922,17 @@ if __name__ == "__main__":
                 cv2.LINE_AA,
             )
 
-        # get annotation paths
-        img_path = IMAGE_PATH_LIST[img_index]
-        annotation_paths = get_annotation_paths(img_path, annotation_formats)
+        if last_img_index != -1:
+            # get annotation paths
+            img_path = IMAGE_PATH_LIST[img_index]
+            annotation_paths = get_annotation_paths(img_path, annotation_formats)
 
         if dragBBox.anchor_being_dragged is not None:
             dragBBox.handler_mouse_move(mouse_x, mouse_y)
 
-        # draw already done bounding boxes
-        tmp_img = draw_bboxes_from_file(tmp_img, annotation_paths, width, height)
+        if last_img_index != -1:
+            # draw already done bounding boxes
+            tmp_img = draw_bboxes_from_file(tmp_img, annotation_paths, width, height)
 
         # if bounding box is selected add extra info
         if is_bbox_selected:
@@ -1020,6 +1028,5 @@ if __name__ == "__main__":
                 populate_training_and_testing_text_files()
 
             elif pressed_key == ord("q"):
-                print(IMAGE_PATH_LIST)
                 cv2.destroyAllWindows()
                 break
