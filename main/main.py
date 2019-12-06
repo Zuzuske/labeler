@@ -408,6 +408,7 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
 
                 img_objects.append([class_index, xmin, ymin, xmax, ymax])
                 color = class_rgb[class_index].tolist()
+
                 # draw bbox
                 cv2.rectangle(
                     tmp_img, (xmin, ymin), (xmax, ymax), color, LINE_THICKNESS
@@ -567,6 +568,8 @@ def mouse_listener(event, x, y, flags, param):
         mouse_x = x
         mouse_y = y
 
+        highlight_bbox()
+
     elif event == cv2.EVENT_LBUTTONDBLCLK:
         prev_was_double_click = True
         # print('Double click')
@@ -711,9 +714,22 @@ def complement_bgr(color):
     return tuple(k - u for u in color)
 
 
-# if imported yolo list is not sixteen numbers decimal like -> 0.925480
-# this method converts it to nine decimal like -> 0.9254807692307693
-# but not in all cases, after conversion you will be able to delete/edit bboxes
+def highlight_bbox():
+    # if clicked inside multiple bboxes selects the smallest one
+
+    for idx, obj in enumerate(img_objects):
+        ind, xmin, ymin, xmax, ymax = obj
+
+        x1 = xmin - dragBBox.sRA
+        y1 = ymin - dragBBox.sRA
+        x2 = xmax + dragBBox.sRA
+        y2 = ymax + dragBBox.sRA
+
+        if pointInRect(mouse_x, mouse_y, x1, y1, x2, y2):
+            print("yes: " + str(obj))
+
+# if imported yolo list cannot be eddited its because the data in imported file is not normalized
+# this method converts/normalizes yolo txt file for current image
 def convert_yolo_to_yolo_annotation_file():
     current_img_path = IMAGE_PATH_LIST[img_index]
 
