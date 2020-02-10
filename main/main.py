@@ -177,6 +177,7 @@ class dragBBox:
 
 
 def display_text(text, time):
+    cv2.displayOverlay(WINDOW_NAME, text, time)
     print(text)
 
 
@@ -188,7 +189,7 @@ def set_img_index(x):
     text = "Showing image {}/{}, path: {}".format(
         str(img_index + 1), str(last_img_index + 1), img_path
     )
-    display_text(text, 1000)
+    display_text(text, 2000)
 
 
 def set_class_index(x):
@@ -197,7 +198,7 @@ def set_class_index(x):
     text = "Selected class {}/{} -> {}".format(
         str(class_index), str(last_class_index), CLASS_LIST[class_index]
     )
-    display_text(text, 3000)
+    display_text(text, 2000)
 
 
 def decrease_index(current_index, last_index):
@@ -728,6 +729,7 @@ def highlight_bbox():
         if pointInRect(mouse_x, mouse_y, x1, y1, x2, y2):
             print("yes: " + str(obj))
 
+
 # if imported yolo list cannot be eddited its because the data in imported file is not normalized
 # this method converts/normalizes yolo txt file for current image
 def convert_yolo_to_yolo_annotation_file():
@@ -746,7 +748,7 @@ def convert_yolo_to_yolo_annotation_file():
                 for line in yolo_list:
                     new_file.write(line + "\n")
 
-                display_text("Converted " + ann_path + " annotation file", 1000)
+                display_text("Converted " + ann_path + " annotation file", 2000)
 
 
 def create_directories_and_files():
@@ -776,7 +778,7 @@ def create_directories_and_files():
 # poop code, not dry, maybe should change, too lazy, it works
 # preparing darknet data folder for training
 # filling training and testing text files with file names
-# these text files are used in darnet yolo training
+# these text files are used in darknet yolo training
 # they tell what data/files are used for deep neural network training and testing
 def populate_training_and_testing_text_files():
     files = sorted(os.listdir(TRAINING_DIR), key=natural_sort_key)
@@ -805,7 +807,7 @@ def populate_training_and_testing_text_files():
                 item = os.path.join(TESTING_DIR, item)
                 text_file.write(item + "\n")
 
-    display_text("Creating training and testing data list", 1000)
+    display_text("Creating training and testing data list", 2000)
 
 
 # change to the directory of this script
@@ -898,6 +900,7 @@ if __name__ == "__main__":
     # Runtime loop
     while True:
         tmp_img = None
+
         if last_img_index != -1:
             tmp_img = img.copy()  # clone the img
         else:
@@ -1001,25 +1004,13 @@ if __name__ == "__main__":
                     obj_to_edit = img_objects[selected_bbox]
                     edit_bbox(obj_to_edit, "change_class:{}".format(class_index))
 
-            elif pressed_key == ord("h"):
-                text = (
-                    "[e] to enable/disable edit mode \n"
-                    "[t] to enable/disable labels \n"
-                    "[m] to change drawing mode \n"
-                    "[a] or [d] to change Image;\n"
-                    "[w] or [s] to change Class.\n"
-                    "\n"
-                    "[q] to quit;\n"
-                )
-                display_text(text, 5000)
-
             elif pressed_key == ord("m"):
                 if drawing_mode == "drag":
                     drawing_mode = "click"
                 elif drawing_mode == "click":
                     drawing_mode = "drag"
 
-                display_text("drawing mode switched to: " + drawing_mode, 1000)
+                display_text("drawing mode switched to: " + drawing_mode, 2000)
 
             elif pressed_key == ord("e"):
                 if edit_mode:
@@ -1027,7 +1018,7 @@ if __name__ == "__main__":
                 else:
                     edit_mode = True
 
-                display_text("edit mode enabled: " + str(edit_mode), 1000)
+                display_text("edit mode enabled: " + str(edit_mode), 2000)
 
             elif pressed_key == ord("t"):
                 if label_text:
@@ -1035,7 +1026,7 @@ if __name__ == "__main__":
                 else:
                     label_text = True
 
-                display_text("labels enabled: " + str(label_text), 1000)
+                display_text("labels enabled: " + str(label_text), 2000)
 
             elif pressed_key == ord("c"):
                 convert_yolo_to_yolo_annotation_file()
@@ -1046,3 +1037,18 @@ if __name__ == "__main__":
             elif pressed_key == ord("q"):
                 cv2.destroyAllWindows()
                 break
+
+            elif pressed_key == ord("h"):
+                text = (
+                    "[a] or [d] to change Image\n"
+                    "[w] or [s] to change Class\n"
+                    "\n"
+                    "[c] to re-convert uneditable yolo txt file\n"
+                    "[e] to enable/disable edit mode\n"
+                    "[l] to compile darknet traning data set"
+                    "[m] to change drawing mode\n"
+                    "[t] to enable/disable labels\n"
+                    "\n"
+                    "[q] to quit;\n"
+                )
+                display_text(text, 5000)
