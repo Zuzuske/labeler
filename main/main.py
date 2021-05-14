@@ -98,7 +98,8 @@ class dragBBox:
             y_bottom + dragBBox.sRA,
         ):
 
-            anchor_dict = get_anchors_rectangles(x_left, y_top, x_right, y_bottom)
+            anchor_dict = get_anchors_rectangles(
+                x_left, y_top, x_right, y_bottom)
             for anchor_key in anchor_dict:
                 rX_left, rY_top, rX_right, rY_bottom = anchor_dict[anchor_key]
                 if pointInRect(eX, eY, rX_left, rY_top, rX_right, rY_bottom):
@@ -145,6 +146,7 @@ class dragBBox:
                 if eY < y_bottom - margin:
                     y_top = eY
                     change_was_made = True
+
             elif dragBBox.anchor_being_dragged[1] == "B":
                 # bottom anchors (LB, RB, MB)
                 if eY > y_top + margin:
@@ -155,7 +157,9 @@ class dragBBox:
                 action = "resize_bbox:{}:{}:{}:{}".format(
                     x_left, y_top, x_right, y_bottom
                 )
+
                 edit_bbox(dragBBox.selected_object, action)
+
                 # update the selected bbox
                 dragBBox.selected_object = [
                     class_name,
@@ -177,7 +181,7 @@ class dragBBox:
 
 
 def display_text(text, time):
-    cv2.displayOverlay(WINDOW_NAME, text, time)
+    #    cv2.displayOverlay(WINDOW_NAME, text, time)
     print(text)
 
 
@@ -348,7 +352,8 @@ def draw_bbox_anchors(tmp_img, xmin, ymin, xmax, ymax, color):
     anchor_dict = get_anchors_rectangles(xmin, ymin, xmax, ymax)
     for anchor_key in anchor_dict:
         x1, y1, x2, y2 = anchor_dict[anchor_key]
-        cv2.rectangle(tmp_img, (int(x1), int(y1)), (int(x2), int(y2)), color, -1)
+        cv2.rectangle(tmp_img, (int(x1), int(y1)),
+                      (int(x2), int(y2)), color, -1)
     return tmp_img
 
 
@@ -357,7 +362,8 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
     img_objects = []
 
     if read_file == "yolo":
-        ann_path = next(path for path in annotation_paths if "YOLO_darknet" in path)
+        ann_path = next(
+            path for path in annotation_paths if "YOLO_darknet" in path)
         if os.path.isfile(ann_path):
             with open(ann_path) as file:
                 lines = list(nonblank_lines(file))
@@ -374,7 +380,8 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
 
                     # draw bbox
                     cv2.rectangle(
-                        tmp_img, (xmin, ymin), (xmax, ymax), color, LINE_THICKNESS
+                        tmp_img, (xmin, ymin), (xmax,
+                                                ymax), color, LINE_THICKNESS
                     )
 
                     # draw resizing anchors
@@ -398,7 +405,8 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
                         )
 
     elif read_file == "pascal":
-        ann_path = next(path for path in annotation_paths if "PASCAL_VOC" in path)
+        ann_path = next(
+            path for path in annotation_paths if "PASCAL_VOC" in path)
         if os.path.isfile(ann_path):
             tree = ET.parse(ann_path)
             annotation = tree.getroot()
@@ -417,7 +425,8 @@ def draw_bboxes_from_file(tmp_img, annotation_paths, width, height):
 
                 # draw resizing anchors
                 if edit_mode == True:
-                    tmp_img = draw_bbox_anchors(tmp_img, xmin, ymin, xmax, ymax, color)
+                    tmp_img = draw_bbox_anchors(
+                        tmp_img, xmin, ymin, xmax, ymax, color)
 
                 # draw labels
                 if label_text == True:
@@ -597,7 +606,7 @@ def mouse_listener(event, x, y, flags, param):
             dragBBox.handler_left_mouse_down(x, y, img_objects)
 
         if dragBBox.anchor_being_dragged is None:
-            if point_1[0] is -1:
+            if point_1[0] == -1:
                 if is_bbox_selected:
                     if is_mouse_inside_delete_button():
                         set_selected_bbox(set_class)
@@ -728,6 +737,7 @@ def highlight_bbox():
 
         if pointInRect(mouse_x, mouse_y, x1, y1, x2, y2):
             print("yes: " + str(obj))
+            
 
 
 # if imported yolo list cannot be eddited its because the data in imported file is not normalized
@@ -739,7 +749,8 @@ def convert_yolo_to_yolo_annotation_file():
 
     for item in img_objects:
         class_index, xmin, ymin, xmax, ymax = map(int, item)
-        yolo_line = yolo_format(class_index, (xmin, ymin), (xmax, ymax), width, height)
+        yolo_line = yolo_format(class_index, (xmin, ymin),
+                                (xmax, ymax), width, height)
         yolo_list.append(yolo_line)
 
     for ann_path in get_annotation_paths(current_img_path, annotation_formats):
@@ -748,7 +759,8 @@ def convert_yolo_to_yolo_annotation_file():
                 for line in yolo_list:
                     new_file.write(line + "\n")
 
-                display_text("Converted " + ann_path + " annotation file", 2000)
+                display_text("Converted " + ann_path +
+                             " annotation file", 2000)
 
 
 def create_directories_and_files():
@@ -845,7 +857,8 @@ if __name__ == "__main__":
         abs_path = os.path.abspath(img_path)
         folder_name = os.path.dirname(img_path)
         image_name = os.path.basename(img_path)
-        img_height, img_width, depth = (str(number) for number in test_img.shape)
+        img_height, img_width, depth = (str(number)
+                                        for number in test_img.shape)
 
         for ann_path in get_annotation_paths(img_path, annotation_formats):
             if not os.path.isfile(ann_path):
@@ -869,7 +882,8 @@ if __name__ == "__main__":
     # If there are still more classes, add new colors randomly
     num_colors_missing = len(CLASS_LIST) - len(class_rgb)
     if num_colors_missing > 0:
-        more_colors = np.random.randint(0, 255 + 1, size=(num_colors_missing, 3))
+        more_colors = np.random.randint(
+            0, 255 + 1, size=(num_colors_missing, 3))
         class_rgb = np.vstack([class_rgb, more_colors])
 
     # create window
@@ -891,7 +905,7 @@ if __name__ == "__main__":
         )
 
     # welcome
-    display_text("Welcome!\n Press [h] for help.", 5000)
+    #display_text("Welcome!\n Press [h] for help.", 5000)
 
     # initialize
     if last_img_index != -1:
@@ -944,25 +958,28 @@ if __name__ == "__main__":
         if last_img_index != -1:
             # get annotation paths
             img_path = IMAGE_PATH_LIST[img_index]
-            annotation_paths = get_annotation_paths(img_path, annotation_formats)
+            annotation_paths = get_annotation_paths(
+                img_path, annotation_formats)
 
         if dragBBox.anchor_being_dragged is not None:
             dragBBox.handler_mouse_move(mouse_x, mouse_y)
 
         if last_img_index != -1:
             # draw already done bounding boxes
-            tmp_img = draw_bboxes_from_file(tmp_img, annotation_paths, width, height)
+            tmp_img = draw_bboxes_from_file(
+                tmp_img, annotation_paths, width, height)
 
         # if bounding box is selected add extra info
         if is_bbox_selected:
             tmp_img = draw_info_bb_selected(tmp_img)
 
         # if first click
-        if point_1[0] is not -1:
+        if point_1[0] != -1:
             # draw partial bbox
-            cv2.rectangle(tmp_img, point_1, (mouse_x, mouse_y), color, LINE_THICKNESS)
+            cv2.rectangle(tmp_img, point_1, (mouse_x, mouse_y),
+                          color, LINE_THICKNESS)
             # if second click
-            if point_2[0] is not -1:
+            if point_2[0] != -1:
                 # save the bounding box
                 save_bounding_box(
                     annotation_paths, class_index, point_1, point_2, width, height
@@ -1002,7 +1019,8 @@ if __name__ == "__main__":
 
                 if is_bbox_selected:
                     obj_to_edit = img_objects[selected_bbox]
-                    edit_bbox(obj_to_edit, "change_class:{}".format(class_index))
+                    edit_bbox(
+                        obj_to_edit, "change_class:{}".format(class_index))
 
             elif pressed_key == ord("m"):
                 if drawing_mode == "drag":
